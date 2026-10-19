@@ -1,21 +1,20 @@
-
 using UnityEngine;
 using UnityEngine.AI;
 
 public class HunterAI : MonoBehaviour
 {
     [Header("Detection")]
-    public float chaseRange = 15f;
+    public float chaseRange = 30f;
     public float stopDistance = 1.5f;
 
     [Header("Patrol")]
     public Transform[] patrolPoints;
     public float patrolWaitTime = 2f;
-    public float patrolSpeed = 2f;
+    public float patrolSpeed = 3.5f;
     public float patrolStopDistance = 0.3f;
 
     [Header("Chase")]
-    public float chaseSpeed = 3.5f;
+    public float chaseSpeed = 5f;
 
     [Header("Return To Spawn")]
     public Transform hunterSpawnPoint;
@@ -28,6 +27,7 @@ public class HunterAI : MonoBehaviour
     private int currentPoint = 0;
     private float waitTimer = 0f;
     private float idleTimer = 0f;
+    private float patrolTimer = 0f;
 
     private Vector3 lastPosition;
     private bool returningToSpawn = false;
@@ -50,13 +50,32 @@ public class HunterAI : MonoBehaviour
             agent.speed = patrolSpeed;
         }
     }
+    void Start()
+    {
+        SnapToNavMesh();
+        MoveToNextPoint();
+    }
+
+    void SnapToNavMesh()
+    {
+        if (agent == null) return;
+
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 100f, NavMesh.AllAreas))
+            agent.Warp(hit.position);
+    }
 
     void Update()
     {
-        if (agent == null || !agent.enabled || !agent.isOnNavMesh)
+        if (agent == null || !agent.enabled)
             return;
 
-        // ��Ѻ�ش�Դ��͹�Ӿĵԡ������
+        if (!agent.isOnNavMesh)
+        {
+            SnapToNavMesh();
+            return;
+        }
+
+        // กลับจุดเกิดก่อนทำอย่างอื่น
         if (returningToSpawn)
         {
             ReturnToSpawn();
@@ -64,10 +83,11 @@ public class HunterAI : MonoBehaviour
         }
 
         FindPlayer();
-
+    
         bool playerInRange = player != null &&
             Vector3.Distance(transform.position, player.position)
-            <= chaseRange;
+            <= chaseRange &&
+            CanReachPlayer();
 
         currentState = playerInRange ? State.Chase : State.Patrol;
 
@@ -95,13 +115,39 @@ public class HunterAI : MonoBehaviour
             player = obj.transform;
     }
 
+    private float reachTimer = 0f;
+    private bool playerReachable = true;
+
+    bool CanReachPlayer()
+    {
+        reachTimer -= Time.deltaTime;
+        if (reachTimer > 0f) return playerReachable;
+        reachTimer = 0.5f;
+
+        playerReachable = false;
+        if (NavMesh.SamplePosition(player.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            NavMeshPath path = new NavMeshPath();
+            if (agent.CalculatePath(hit.position, path) &&
+                path.status == NavMeshPathStatus.PathComplete)
+                playerReachable = true;
+        }
+        return playerReachable;
+    }
+
     void ChasePlayer()
     {
         agent.speed = chaseSpeed;
         agent.stoppingDistance = stopDistance;
         agent.isStopped = false;
 
-        agent.SetDestination(player.position);
+        Vector3 target = player.position;
+
+        // ถ้าผู้เล่นยืนนอก NavMesh นิดหน่อย ให้เล็งจุดสีฟ้าที่ใกล้ที่สุดแทน
+        if (NavMesh.SamplePosition(player.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            target = hit.position;
+
+        agent.SetDestination(target);
     }
 
     void Patrol()
@@ -144,9 +190,26 @@ public class HunterAI : MonoBehaviour
         else
         {
             agent.isStopped = false;
-            agent.SetDestination(
-                patrolPoints[currentPoint].position
-            );
+            
+            // --- ส่วนที่แก้ไขให้จุดเป้าหมายดึงเข้าหาพื้นที่เดินได้อัตโนมัติ ---
+            Vector3 target = patrolPoints[currentPoint].position;
+            if (NavMesh.SamplePosition(target, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            {
+                target = hit.position;
+            }
+            agent.SetDestination(target);
+            // ---------------------------------------------------
+
+            patrolTimer += Time.deltaTime;
+
+            //// ยอมให้เดินไปถึงจุดที่ใกล้ที่สุดได้ (PathPartial) โดยไม่ข้ามจุดทันที
+            bool unreachable = !agent.pathPending &&
+                agent.pathStatus == NavMeshPathStatus.PathInvalid;
+
+            if (unreachable || patrolTimer > 25f)
+            {
+                MoveToNextPoint();
+            }
         }
     }
 
@@ -155,15 +218,35 @@ public class HunterAI : MonoBehaviour
         if (patrolPoints == null || patrolPoints.Length == 0)
             return;
 
-        currentPoint = (currentPoint + 1) % patrolPoints.Length;
+        // สุ่มจุดใหม่ (ไม่ซ้ำจุดเดิม)
+        int next = Random.Range(0, patrolPoints.Length);
+
+        if (patrolPoints.Length > 1)
+        {
+            int safety = 0;
+            while (next == currentPoint && safety < 20)
+            {
+                next = Random.Range(0, patrolPoints.Length);
+                safety++;
+            }
+        }
+
+        currentPoint = next;
         waitTimer = 0f;
+        patrolTimer = 0f;
 
         if (patrolPoints[currentPoint] != null)
         {
             agent.isStopped = false;
-            agent.SetDestination(
-                patrolPoints[currentPoint].position
-            );
+            
+            // --- ส่วนที่แก้ไขให้จุดเป้าหมายดึงเข้าหาพื้นที่เดินได้อัตโนมัติ ---
+            Vector3 target = patrolPoints[currentPoint].position;
+            if (NavMesh.SamplePosition(target, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+            {
+                target = hit.position;
+            }
+            agent.SetDestination(target);
+            // ---------------------------------------------------
         }
     }
 
@@ -172,7 +255,7 @@ public class HunterAI : MonoBehaviour
         if (hunterSpawnPoint == null || returningToSpawn)
             return;
 
-        // ���Ѻ���Ң����ش�������������鹷ҧ
+        // ไม่นับเวลาเมื่อผีหยุดตามปกติหรือไม่มีเส้นทาง
         if (agent.isStopped ||
             !agent.hasPath ||
             agent.pathPending ||
@@ -217,7 +300,7 @@ public class HunterAI : MonoBehaviour
             {
                 returningToSpawn = false;
                 Debug.LogWarning(
-                    "Hunter: �������ö����鹷ҧ��Ѻ�ش�Դ��"
+                    "Hunter: ไม่สามารถหาเส้นทางกลับจุดเกิดได้"
                 );
             }
         }

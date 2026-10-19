@@ -91,6 +91,9 @@ public class GameManager : MonoBehaviour
 
         RespawnPlayer();
         ResetHunter();
+        
+         // เติมบรรทัดนี้: ล้างกระเป๋า + ไอเทมกลับมา + ผีหายไป
+        FindFirstObjectByType<HitReset>()?.ResetAfterHit();
     }
 
     private void RespawnPlayer()

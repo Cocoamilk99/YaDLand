@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,18 +20,17 @@ public class PlayerInventory : MonoBehaviour
         new HashSet<ItemPickup>();
 
     private readonly Dictionary<string, Sprite> collectedItemIcons =
-    new Dictionary<string, Sprite>();
+        new Dictionary<string, Sprite>();
 
     [Header("Door Interaction")]
     [SerializeField] private float doorInteractionRange = 2.5f;
 
     [SerializeField] private Image keyPromptIcon;
+
     private void Start()
     {
         UpdatePrompt();
     }
-
-
 
     private void Update()
     {
@@ -55,8 +53,6 @@ public class PlayerInventory : MonoBehaviour
             }
         }
     }
-
-
 
     public void RegisterNearby(ItemPickup item)
     {
@@ -97,8 +93,6 @@ public class PlayerInventory : MonoBehaviour
         return nearestItem;
     }
 
-
-
     private void UpdatePrompt()
     {
         if (pickupPrompt == null)
@@ -106,11 +100,11 @@ public class PlayerInventory : MonoBehaviour
 
         DoorTeleport door = GetNearestDoor();
 
-        // ÍÂÙèã¡Åé»ÃÐµÙ
+        // à¹ƒà¸à¸¥à¹‰à¸›à¸£à¸°à¸•à¸¹
         if (door != null && !door.IsUsed())
         {
             pickupPrompt.gameObject.SetActive(true);
-            pickupPrompt.text = "¡´ E à¾×èÍà»Ô´´éÇÂ "
+            pickupPrompt.text = "à¸à¸” E à¹€à¸žà¸·à¹ˆà¸­à¹€à¸›à¸´à¸”à¸›à¸£à¸°à¸•à¸¹ "
                 + door.GetRequiredKeyID();
 
             if (keyPromptIcon != null)
@@ -125,11 +119,11 @@ public class PlayerInventory : MonoBehaviour
 
         ItemPickup nearestItem = GetNearestItem();
 
-        // ÍÂÙèã¡ÅéäÍà·Á·Õèà¡çºä´é
+        // à¹ƒà¸à¸¥à¹‰à¹„à¸­à¹€à¸—à¸¡
         if (nearestItem != null)
         {
             pickupPrompt.gameObject.SetActive(true);
-            pickupPrompt.text = "¡´ E à¾×èÍà¡çº";
+            pickupPrompt.text = "à¸à¸” E à¹€à¸žà¸·à¹ˆà¸­à¹€à¸à¹‡à¸š";
 
             if (keyPromptIcon != null)
             {
@@ -141,14 +135,12 @@ public class PlayerInventory : MonoBehaviour
             return;
         }
 
-        // äÁèÍÂÙèã¡Åé»ÃÐµÙËÃ×ÍäÍà·Á
+        // à¹„à¸¡à¹ˆà¹„à¸”à¹‰à¸­à¸¢à¸¹à¹ˆà¹ƒà¸à¸¥à¹‰à¸›à¸£à¸°à¸•à¸¹à¸«à¸£à¸·à¸­à¹„à¸­à¹€à¸—à¸¡
         pickupPrompt.gameObject.SetActive(false);
 
         if (keyPromptIcon != null)
             keyPromptIcon.enabled = false;
     }
-
-
 
     private void TryPickupNearestItem()
     {
@@ -165,9 +157,10 @@ public class PlayerInventory : MonoBehaviour
 
         if (!collectedItems.Add(itemID))
         {
-            Debug.Log("ÁÕäÍà·Á¹ÕéÍÂÙèáÅéÇ: " + itemID);
+            Debug.Log("à¹€à¸à¹‡à¸šà¹„à¸­à¹€à¸—à¸¡à¸™à¸µà¹‰à¹„à¸›à¹à¸¥à¹‰à¸§: " + itemID);
             return false;
         }
+
         collectedItemIcons[itemID] = icon;
 
         if (icon != null &&
@@ -186,11 +179,11 @@ public class PlayerInventory : MonoBehaviour
         else
         {
             Debug.LogWarning(
-                "ÂÑ§äÁèä´éµÑé§¤èÒäÍ¤Í¹ËÃ×Í UI ¢Í§ Inventory"
+                "à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¹„à¸”à¹‰à¸•à¸±à¹‰à¸‡à¸„à¹ˆà¸² UI à¸‚à¸­à¸‡ Inventory"
             );
         }
 
-        Debug.Log("à¡çºäÍà·ÁÊÓàÃç¨: " + itemID);
+        Debug.Log("à¹„à¸”à¹‰à¸£à¸±à¸šà¹„à¸­à¹€à¸—à¸¡: " + itemID);
         return true;
     }
 
@@ -198,7 +191,6 @@ public class PlayerInventory : MonoBehaviour
     {
         return collectedItems.Contains(itemID);
     }
-
 
     private DoorTeleport GetNearestDoor()
     {
@@ -232,11 +224,28 @@ public class PlayerInventory : MonoBehaviour
 
         return nearestDoor;
     }
+
     public Sprite GetItemIcon(string itemID)
     {
         if (collectedItemIcons.TryGetValue(itemID, out Sprite icon))
             return icon;
 
         return null;
+    }
+
+    // à¸¥à¹‰à¸²à¸‡à¸à¸£à¸°à¹€à¸›à¹‹à¸²à¸•à¸­à¸™à¸£à¸µà¹€à¸‹à¹‡à¸• (à¹€à¸£à¸µà¸¢à¸à¸ˆà¸²à¸ HitReset)
+    public void ClearInventory()
+    {
+        collectedItems.Clear();
+        collectedItemIcons.Clear();
+        nearbyItems.Clear();
+
+        if (iconContainer != null)
+        {
+            for (int i = iconContainer.childCount - 1; i >= 0; i--)
+                Destroy(iconContainer.GetChild(i).gameObject);
+        }
+
+        UpdatePrompt();
     }
 }
